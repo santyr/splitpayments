@@ -99,7 +99,7 @@ async def get_lnurl_invoice(
     payoraddress, wallet_id, amount_msat, memo
 ) -> Optional[str]:
 
-    from lnbits.core.views.api import api_lnurlscan
+    from lnbits.core.views.lnurl_api import api_lnurlscan
 
     data = await api_lnurlscan(payoraddress)
     rounded_amount = floor(amount_msat / 1000) * 1000
