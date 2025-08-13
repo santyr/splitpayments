@@ -101,13 +101,14 @@ async def get_lnurl_invoice(
 
     from lnbits.core.views.lnurl_api import api_lnurlscan
 
+    # The data returned here is a Pydantic model, not a dict
     data = await api_lnurlscan(payoraddress)
     rounded_amount = floor(amount_msat / 1000) * 1000
 
     async with httpx.AsyncClient() as client:
         try:
             r = await client.get(
-                data["callback"],
+                data.callback, # Use attribute access instead of dict access
                 params={"amount": rounded_amount, "comment": memo},
                 timeout=5,
             )
@@ -116,7 +117,7 @@ async def get_lnurl_invoice(
             r.raise_for_status()
         except (httpx.ConnectError, httpx.RequestError):
             logger.error(
-                f"splitting LNURL failed: Failed to connect to {data['callback']}."
+                f"splitting LNURL failed: Failed to connect to {data.callback}." # Use attribute access
             )
             return None
         except Exception as exc:
@@ -125,7 +126,7 @@ async def get_lnurl_invoice(
 
     params = json.loads(r.text)
     if params.get("status") == "ERROR":
-        logger.error(f"{data['callback']} said: '{params.get('reason', '')}'")
+        logger.error(f"{data.callback} said: '{params.get('reason', '')}'") # Use attribute access
         return None
 
     invoice = bolt11.decode(params["pr"])
@@ -139,10 +140,10 @@ async def get_lnurl_invoice(
     if invoice.amount_msat != rounded_amount:
         logger.error(
             f"""
-        {data['callback']} returned an invalid invoice.
+        {data.callback} returned an invalid invoice.
         Expected {amount_msat} msat, got {invoice.amount_msat}.
         """
         )
         return None
 
-    return params["pr"]
+    return params["pr"]```
