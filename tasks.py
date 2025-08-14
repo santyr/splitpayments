@@ -5,10 +5,14 @@ from typing import Optional
 
 import bolt11
 import httpx
+# New imports needed for direct lnurl handling
+from lnurl import LnurlResponseException
+from lnurl import handle as lnurl_handle
 from lnbits.core.crud import get_standalone_payment
 from lnbits.core.crud.wallets import get_wallet_for_key
 from lnbits.core.models import Payment
 from lnbits.core.services import create_invoice, fee_reserve, pay_invoice
+from lnbits.settings import settings  # New import for user_agent
 from lnbits.tasks import register_invoice_listener
 from loguru import logger
 
@@ -99,16 +103,19 @@ async def get_lnurl_invoice(
     payoraddress, wallet_id, amount_msat, memo
 ) -> Optional[str]:
 
-    from lnbits.core.views.lnurl_api import api_lnurlscan
+    # MODIFICATION: Call the lnurl library directly instead of the API endpoint
+    try:
+        data = await lnurl_handle(payoraddress, user_agent=settings.user_agent, timeout=5)
+    except (LnurlResponseException, Exception) as exc:
+        logger.error(f"Failed to handle '{payoraddress}'. Error: {exc}")
+        return None
 
-    # The data returned here is a Pydantic model, not a dict
-    data = await api_lnurlscan(payoraddress)
     rounded_amount = floor(amount_msat / 1000) * 1000
 
     async with httpx.AsyncClient() as client:
         try:
             r = await client.get(
-                data.callback, # Use attribute access instead of dict access
+                data.callback,
                 params={"amount": rounded_amount, "comment": memo},
                 timeout=5,
             )
@@ -117,7 +124,7 @@ async def get_lnurl_invoice(
             r.raise_for_status()
         except (httpx.ConnectError, httpx.RequestError):
             logger.error(
-                f"splitting LNURL failed: Failed to connect to {data.callback}." # Use attribute access
+                f"splitting LNURL failed: Failed to connect to {data.callback}."
             )
             return None
         except Exception as exc:
@@ -126,7 +133,7 @@ async def get_lnurl_invoice(
 
     params = json.loads(r.text)
     if params.get("status") == "ERROR":
-        logger.error(f"{data.callback} said: '{params.get('reason', '')}'") # Use attribute access
+        logger.error(f"{data.callback} said: '{params.get('reason', '')}'")
         return None
 
     invoice = bolt11.decode(params["pr"])
@@ -146,4 +153,4 @@ async def get_lnurl_invoice(
         )
         return None
 
-    return params["pr"]```
+    return params["pr"]
