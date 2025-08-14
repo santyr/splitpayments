@@ -5,14 +5,13 @@ from typing import Optional
 
 import bolt11
 import httpx
-# New imports needed for direct lnurl handling
 from lnurl import LnurlResponseException
 from lnurl import handle as lnurl_handle
 from lnbits.core.crud import get_standalone_payment
 from lnbits.core.crud.wallets import get_wallet_for_key
 from lnbits.core.models import Payment
 from lnbits.core.services import create_invoice, fee_reserve, pay_invoice
-from lnbits.settings import settings  # New import for user_agent
+from lnbits.settings import settings
 from lnbits.tasks import register_invoice_listener
 from loguru import logger
 
@@ -102,7 +101,9 @@ async def get_lnurl_invoice(
     payoraddress, wallet_id, amount_msat, memo
 ) -> Optional[str]:
 
-    # MODIFICATION: Call the lnurl library directly instead of the API endpoint
+    # FIX: Convert address to lowercase to support case-insensitive spec
+    payoraddress = payoraddress.lower()
+
     try:
         data = await lnurl_handle(payoraddress, user_agent=settings.user_agent, timeout=5)
     except (LnurlResponseException, Exception) as exc:
