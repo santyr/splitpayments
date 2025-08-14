@@ -52,7 +52,6 @@ async def on_invoice_paid(payment: Payment) -> None:
             memo = (
                 f"Split payment: {target.percent}% "
                 f"for {target.alias or target.wallet}"
-                f";{payment.memo};{payment.payment_hash}"
             )
 
             if "@" in target.wallet or "LNURL" in target.wallet:
